@@ -5,11 +5,11 @@ from flask_sqlalchemy import SQLAlchemy
 
 # Flask setup
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'  # local SQLite DB
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'  # database file
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Database Model
+# Database Model (table structure)
 class WeatherData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     city = db.Column(db.String(50))
@@ -23,34 +23,59 @@ class WeatherData(db.Model):
         self.weather = weather
         self.date = date
 
-API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your API key
 
-# Predefined cities
+API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your actual API key
+
+# Predefined city list (for autosuggest)
 CITIES = ["Delhi", "Mumbai", "Chennai", "Kolkata", "Bengaluru", 
           "Hyderabad", "Pune", "Jaipur", "Ahmedabad", "Lucknow"]
 
-# HTML Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>🌤 Pro Weather Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(120deg, #89f7fe, #66a6ff);
-               margin: 0; padding: 0; text-align: center; }
-        h1 { color: white; padding: 20px; background: rgba(0,0,0,0.4); font-size: 30px; margin: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(120deg, #89f7fe, #66a6ff);
+            margin: 0; padding: 0; text-align: center;
+        }
+        h1 { 
+            color: white; padding: 20px; margin: 0;
+            background: rgba(0,0,0,0.4);
+            font-size: 30px;
+        }
         .form-container { margin: 20px; }
-        select, button { padding: 12px; font-size: 16px; border-radius: 8px; border: none; }
-        button { background: #0077cc; color: white; cursor: pointer; }
+        input, button {
+            padding: 12px; font-size: 16px;
+            border-radius: 8px; border: none;
+        }
+        input {
+            width: 250px;
+        }
+        button {
+            background: #0077cc; color: white; cursor: pointer;
+            transition: 0.3s;
+        }
         button:hover { background: #005fa3; }
         .error { color: red; font-weight: bold; margin: 20px; }
-        .current-card { background: white; padding: 30px; border-radius: 20px;
-                        box-shadow: 0 6px 15px rgba(0,0,0,0.2); display: inline-block; margin: 30px auto; width: 400px; }
+        .current-card {
+            background: white; padding: 30px;
+            border-radius: 20px; box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            display: inline-block; margin: 30px auto; width: 400px;
+        }
         .info { font-size: 16px; color: #444; margin: 10px 0; }
         .current-temp { font-size: 70px; margin: 15px 0; color: #0077cc; }
-        .forecast-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 20px; }
-        .forecast-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 15px;
-                         box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 160px; transition: transform 0.2s; }
+        .forecast-container {
+            display: flex; justify-content: center; gap: 20px;
+            flex-wrap: wrap; margin: 20px;
+        }
+        .forecast-card {
+            background: rgba(255,255,255,0.9); padding: 20px;
+            border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 160px; transition: transform 0.2s;
+        }
         .forecast-card:hover { transform: scale(1.05); }
         .forecast-date { font-weight: bold; margin-bottom: 8px; }
         .weather-icon { width: 60px; height: 60px; }
@@ -62,15 +87,16 @@ HTML_TEMPLATE = """
 <body>
     <h1>🌤 Pro Weather Dashboard</h1>
 
-    <!-- Dropdown -->
+    <!-- Search Bar with Auto-suggest -->
     <div class="form-container">
         <form method="POST" action="/">
-            <label for="city"><b>Select City:</b></label>
-            <select name="city" id="city">
+            <label for="city"><b>Enter City:</b></label>
+            <input list="citylist" name="city" id="city" placeholder="Type a city..." required>
+            <datalist id="citylist">
                 {% for city in cities %}
-                    <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
+                    <option value="{{ city }}">
                 {% endfor %}
-            </select>
+            </datalist>
             <button type="submit">Get Weather</button>
         </form>
     </div>
@@ -119,9 +145,9 @@ def home():
     forecast_data = []
 
     if request.method == "POST":
-        selected_city = request.form.get("city")
+        selected_city = request.form.get("city").strip().title()  # Normalize input
         if selected_city not in CITIES:
-            error = "Invalid city selected!"
+            error = "Invalid city entered!"
             return render_template_string(HTML_TEMPLATE, cities=CITIES, selected_city=selected_city,
                                           error=error, current=None, forecast=[])
 
@@ -146,7 +172,7 @@ def home():
         "date": datetime.fromtimestamp(current_res["dt"]).strftime("%d %b %Y, %I:%M %p")
     }
 
-    # Save weather to DB
+    # Save to DB
     weather_entry = WeatherData(
         city=current_data["city"],
         temp=current_data["temp"],
@@ -182,6 +208,4 @@ def home():
                                   error=error, current=current_data, forecast=forecast_data)
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()  # create DB if not exists
     app.run(debug=True, host="0.0.0.0", port=5000)
