@@ -2,14 +2,15 @@ from flask import Flask, render_template_string, request
 import requests
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+import os
 
 # Flask setup
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'  # database file
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Database Model (table structure)
+# Database Model
 class WeatherData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     city = db.Column(db.String(50))
@@ -23,12 +24,13 @@ class WeatherData(db.Model):
         self.weather = weather
         self.date = date
 
+# ✅ Auto-create DB if not exists
+with app.app_context():
+    if not os.path.exists("weather.db"):
+        db.create_all()
+        print("📦 Database created automatically!")
 
-API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your actual API key
-
-# Predefined city list (for autosuggest)
-CITIES = ["Delhi", "Mumbai", "Chennai", "Kolkata", "Bengaluru", 
-          "Hyderabad", "Pune", "Jaipur", "Ahmedabad", "Lucknow"]
+API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your real API key
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -41,23 +43,15 @@ HTML_TEMPLATE = """
             background: linear-gradient(120deg, #89f7fe, #66a6ff);
             margin: 0; padding: 0; text-align: center;
         }
-        h1 { 
-            color: white; padding: 20px; margin: 0;
-            background: rgba(0,0,0,0.4);
-            font-size: 30px;
-        }
+        h1 { color: white; padding: 20px; margin: 0;
+             background: rgba(0,0,0,0.4); font-size: 30px; }
         .form-container { margin: 20px; }
         input, button {
             padding: 12px; font-size: 16px;
             border-radius: 8px; border: none;
         }
-        input {
-            width: 250px;
-        }
-        button {
-            background: #0077cc; color: white; cursor: pointer;
-            transition: 0.3s;
-        }
+        input { width: 250px; }
+        button { background: #0077cc; color: white; cursor: pointer; transition: 0.3s; }
         button:hover { background: #005fa3; }
         .error { color: red; font-weight: bold; margin: 20px; }
         .current-card {
@@ -67,10 +61,7 @@ HTML_TEMPLATE = """
         }
         .info { font-size: 16px; color: #444; margin: 10px 0; }
         .current-temp { font-size: 70px; margin: 15px 0; color: #0077cc; }
-        .forecast-container {
-            display: flex; justify-content: center; gap: 20px;
-            flex-wrap: wrap; margin: 20px;
-        }
+        .forecast-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 20px; }
         .forecast-card {
             background: rgba(255,255,255,0.9); padding: 20px;
             border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
@@ -87,16 +78,10 @@ HTML_TEMPLATE = """
 <body>
     <h1>🌤 Pro Weather Dashboard</h1>
 
-    <!-- Search Bar with Auto-suggest -->
+    <!-- Search Box -->
     <div class="form-container">
         <form method="POST" action="/">
-            <label for="city"><b>Enter City:</b></label>
-            <input list="citylist" name="city" id="city" placeholder="Type a city..." required>
-            <datalist id="citylist">
-                {% for city in cities %}
-                    <option value="{{ city }}">
-                {% endfor %}
-            </datalist>
+            <input type="text" name="city" placeholder="Enter city name..." value="{{ selected_city }}">
             <button type="submit">Get Weather</button>
         </form>
     </div>
@@ -145,20 +130,18 @@ def home():
     forecast_data = []
 
     if request.method == "POST":
-        selected_city = request.form.get("city").strip().title()  # Normalize input
-        if selected_city not in CITIES:
-            error = "Invalid city entered!"
-            return render_template_string(HTML_TEMPLATE, cities=CITIES, selected_city=selected_city,
-                                          error=error, current=None, forecast=[])
+        selected_city = request.form.get("city")
+        if not selected_city or selected_city.strip() == "":
+            error = "Please enter a city name!"
+            return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=None, forecast=[])
 
     # --- Current Weather ---
     current_url = f"http://api.openweathermap.org/data/2.5/weather?q={selected_city}&appid={API_KEY}&units=metric"
     current_res = requests.get(current_url).json()
 
     if "main" not in current_res:
-        error = "Error fetching current weather!"
-        return render_template_string(HTML_TEMPLATE, cities=CITIES, selected_city=selected_city,
-                                      error=error, current=None, forecast=[])
+        error = f"Error fetching current weather for {selected_city}!"
+        return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=None, forecast=[])
 
     current_data = {
         "city": current_res["name"],
@@ -173,12 +156,8 @@ def home():
     }
 
     # Save to DB
-    weather_entry = WeatherData(
-        city=current_data["city"],
-        temp=current_data["temp"],
-        weather=current_data["weather"],
-        date=current_data["date"]
-    )
+    weather_entry = WeatherData(city=current_data["city"], temp=current_data["temp"],
+                                weather=current_data["weather"], date=current_data["date"])
     db.session.add(weather_entry)
     db.session.commit()
 
@@ -186,26 +165,22 @@ def home():
     forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={selected_city}&appid={API_KEY}&units=metric"
     forecast_res = requests.get(forecast_url).json()
 
-    if "list" not in forecast_res:
-        error = "Error fetching forecast!"
-        return render_template_string(HTML_TEMPLATE, cities=CITIES, selected_city=selected_city,
-                                      error=error, current=current_data, forecast=[])
+    if "list" in forecast_res:
+        added_days = set()
+        for entry in forecast_res["list"]:
+            date_obj = datetime.strptime(entry["dt_txt"], "%Y-%m-%d %H:%M:%S")
+            day = date_obj.strftime("%d %b")
+            if date_obj.hour == 12 and day not in added_days:
+                forecast_data.append({
+                    "temp": round(entry["main"]["temp"], 1),
+                    "weather": entry["weather"][0]["description"].title(),
+                    "icon": entry["weather"][0]["icon"],
+                    "date": date_obj.strftime("%a, %d %b")
+                })
+                added_days.add(day)
 
-    added_days = set()
-    for entry in forecast_res["list"]:
-        date_obj = datetime.strptime(entry["dt_txt"], "%Y-%m-%d %H:%M:%S")
-        day = date_obj.strftime("%d %b")
-        if date_obj.hour == 12 and day not in added_days:
-            forecast_data.append({
-                "temp": round(entry["main"]["temp"], 1),
-                "weather": entry["weather"][0]["description"].title(),
-                "icon": entry["weather"][0]["icon"],
-                "date": date_obj.strftime("%a, %d %b")
-            })
-            added_days.add(day)
-
-    return render_template_string(HTML_TEMPLATE, cities=CITIES, selected_city=selected_city,
-                                  error=error, current=current_data, forecast=forecast_data)
+    return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error,
+                                  current=current_data, forecast=forecast_data)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

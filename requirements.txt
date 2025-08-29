@@ -1,3 +1,6 @@
 Flask==2.2.5
 requests
 gunicorn
+flask_sqlalchemy
+flask_wtf
+wtforms
