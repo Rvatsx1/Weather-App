@@ -2,15 +2,14 @@ from flask import Flask, render_template_string, request
 import requests
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-import os
 
 # Flask setup
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather.db'  # database file
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Database Model
+# Database Model (table structure)
 class WeatherData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     city = db.Column(db.String(50))
@@ -24,13 +23,11 @@ class WeatherData(db.Model):
         self.weather = weather
         self.date = date
 
-# ✅ Auto-create DB if not exists
+# ensure DB is created
 with app.app_context():
-    if not os.path.exists("weather.db"):
-        db.create_all()
-        print("📦 Database created automatically!")
+    db.create_all()
 
-API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your real API key
+API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your actual API key
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -38,59 +35,37 @@ HTML_TEMPLATE = """
 <head>
     <title>🌤 Pro Weather Dashboard</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(120deg, #89f7fe, #66a6ff);
-            margin: 0; padding: 0; text-align: center;
-        }
-        h1 { color: white; padding: 20px; margin: 0;
-             background: rgba(0,0,0,0.4); font-size: 30px; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(120deg, #89f7fe, #66a6ff); margin: 0; padding: 0; text-align: center; }
+        h1 { color: white; padding: 20px; margin: 0; background: rgba(0,0,0,0.4); font-size: 30px; }
         .form-container { margin: 20px; }
-        input, button {
-            padding: 12px; font-size: 16px;
-            border-radius: 8px; border: none;
-        }
-        input { width: 250px; }
+        input, button { padding: 12px; font-size: 16px; border-radius: 8px; border: none; }
         button { background: #0077cc; color: white; cursor: pointer; transition: 0.3s; }
         button:hover { background: #005fa3; }
         .error { color: red; font-weight: bold; margin: 20px; }
-        .current-card {
-            background: white; padding: 30px;
-            border-radius: 20px; box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-            display: inline-block; margin: 30px auto; width: 400px;
-        }
+        .current-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); display: inline-block; margin: 30px auto; width: 400px; }
         .info { font-size: 16px; color: #444; margin: 10px 0; }
         .current-temp { font-size: 70px; margin: 15px 0; color: #0077cc; }
         .forecast-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 20px; }
-        .forecast-card {
-            background: rgba(255,255,255,0.9); padding: 20px;
-            border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            width: 160px; transition: transform 0.2s;
-        }
+        .forecast-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 160px; transition: transform 0.2s; }
         .forecast-card:hover { transform: scale(1.05); }
         .forecast-date { font-weight: bold; margin-bottom: 8px; }
         .weather-icon { width: 60px; height: 60px; }
     </style>
-    <script>
-        function showError(msg) { alert(msg); }
-    </script>
+    <script> function showError(msg) { alert(msg); } </script>
 </head>
 <body>
     <h1>🌤 Pro Weather Dashboard</h1>
-
-    <!-- Search Box -->
+    <!-- Search box -->
     <div class="form-container">
         <form method="POST" action="/">
-            <input type="text" name="city" placeholder="Enter city name..." value="{{ selected_city }}">
+            <input type="text" name="city" placeholder="Enter City (e.g. Delhi)" required>
             <button type="submit">Get Weather</button>
         </form>
     </div>
-
     {% if error %}
         <div class="error">⚠️ {{ error }}</div>
         <script>showError("{{ error }}");</script>
     {% endif %}
-
     {% if current %}
     <!-- Current Weather -->
     <div class="current-card">
@@ -104,7 +79,6 @@ HTML_TEMPLATE = """
         <div class="info">🌇 Sunset: {{ current.sunset }}</div>
         <p class="date">Last Updated: {{ current.date }}</p>
     </div>
-
     <!-- Forecast Section -->
     <h2 style="color:white; margin-top:40px;">📅 5-Day Forecast</h2>
     <div class="forecast-container">
@@ -130,18 +104,17 @@ def home():
     forecast_data = []
 
     if request.method == "POST":
-        selected_city = request.form.get("city")
-        if not selected_city or selected_city.strip() == "":
-            error = "Please enter a city name!"
-            return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=None, forecast=[])
+        selected_city = request.form.get("city").strip()
+        if not selected_city:
+            error = "Please enter a valid city!"
+            return render_template_string(HTML_TEMPLATE, error=error, current=None, forecast=[])
 
-    # --- Current Weather ---
+    # Current weather
     current_url = f"http://api.openweathermap.org/data/2.5/weather?q={selected_city}&appid={API_KEY}&units=metric"
     current_res = requests.get(current_url).json()
-
     if "main" not in current_res:
-        error = f"Error fetching current weather for {selected_city}!"
-        return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=None, forecast=[])
+        error = f"⚠️ Could not fetch weather for {selected_city}. Try another city."
+        return render_template_string(HTML_TEMPLATE, error=error, current=None, forecast=[])
 
     current_data = {
         "city": current_res["name"],
@@ -155,32 +128,43 @@ def home():
         "date": datetime.fromtimestamp(current_res["dt"]).strftime("%d %b %Y, %I:%M %p")
     }
 
-    # Save to DB
-    weather_entry = WeatherData(city=current_data["city"], temp=current_data["temp"],
-                                weather=current_data["weather"], date=current_data["date"])
+    # save to DB
+    weather_entry = WeatherData(
+        city=current_data["city"],
+        temp=current_data["temp"],
+        weather=current_data["weather"],
+        date=current_data["date"]
+    )
     db.session.add(weather_entry)
     db.session.commit()
 
-    # --- Forecast ---
+    # Forecast
     forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={selected_city}&appid={API_KEY}&units=metric"
     forecast_res = requests.get(forecast_url).json()
+    added_days = set()
+    for entry in forecast_res.get("list", []):
+        date_obj = datetime.strptime(entry["dt_txt"], "%Y-%m-%d %H:%M:%S")
+        day = date_obj.strftime("%d %b")
+        if date_obj.hour == 12 and day not in added_days:
+            forecast_data.append({
+                "temp": round(entry["main"]["temp"], 1),
+                "weather": entry["weather"][0]["description"].title(),
+                "icon": entry["weather"][0]["icon"],
+                "date": date_obj.strftime("%a, %d %b")
+            })
+            added_days.add(day)
 
-    if "list" in forecast_res:
-        added_days = set()
-        for entry in forecast_res["list"]:
-            date_obj = datetime.strptime(entry["dt_txt"], "%Y-%m-%d %H:%M:%S")
-            day = date_obj.strftime("%d %b")
-            if date_obj.hour == 12 and day not in added_days:
-                forecast_data.append({
-                    "temp": round(entry["main"]["temp"], 1),
-                    "weather": entry["weather"][0]["description"].title(),
-                    "icon": entry["weather"][0]["icon"],
-                    "date": date_obj.strftime("%a, %d %b")
-                })
-                added_days.add(day)
+    return render_template_string(HTML_TEMPLATE, error=error, current=current_data, forecast=forecast_data)
 
-    return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error,
-                                  current=current_data, forecast=forecast_data)
+# 🆕 new route to check DB history
+@app.route("/history")
+def history():
+    records = WeatherData.query.all()
+    table_html = "<h2>📜 Search History</h2><table border=1 cellpadding=10><tr><th>City</th><th>Temp (°C)</th><th>Weather</th><th>Date</th></tr>"
+    for r in records:
+        table_html += f"<tr><td>{r.city}</td><td>{r.temp}</td><td>{r.weather}</td><td>{r.date}</td></tr>"
+    table_html += "</table>"
+    return table_html
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
