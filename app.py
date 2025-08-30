@@ -2,9 +2,8 @@ from flask import Flask, render_template_string, request, send_file
 import requests
 from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import io
+import os
+from openpyxl import Workbook
 
 # Flask setup
 app = Flask(__name__)
@@ -26,71 +25,64 @@ class WeatherData(db.Model):
         self.weather = weather
         self.date = date
 
-with app.app_context():
-    db.create_all()
+API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your actual API key
 
-API_KEY = "5c4ce7f754f9ceefddd179065bc16856"  # replace with your key
-
-# ---------------- HTML Templates ---------------- #
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>🌤 Pro Weather Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(120deg, #89f7fe, #66a6ff); margin: 0; padding: 0; text-align: center; }
-        h1 { color: white; padding: 20px; margin: 0; background: rgba(0,0,0,0.4); font-size: 30px; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(120deg, #89f7fe, #66a6ff); text-align: center; margin: 0; }
+        h1 { background: rgba(0,0,0,0.4); color: white; padding: 15px; }
         .form-container { margin: 20px; }
-        input, button { padding: 12px; font-size: 16px; border-radius: 8px; border: none; }
-        button { background: #0077cc; color: white; cursor: pointer; transition: 0.3s; }
+        input, button { padding: 10px; font-size: 16px; border-radius: 6px; border: none; }
+        button { background: #0077cc; color: white; cursor: pointer; }
         button:hover { background: #005fa3; }
         .error { color: red; font-weight: bold; margin: 20px; }
-        .current-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); display: inline-block; margin: 30px auto; width: 400px; }
-        .info { font-size: 16px; color: #444; margin: 10px 0; }
-        .current-temp { font-size: 70px; margin: 15px 0; color: #0077cc; }
-        .forecast-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 20px; }
-        .forecast-card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 160px; transition: transform 0.2s; }
-        .forecast-card:hover { transform: scale(1.05); }
-        .forecast-date { font-weight: bold; margin-bottom: 8px; }
-        .weather-icon { width: 60px; height: 60px; }
-        .history-btn { margin-top: 20px; display: inline-block; padding: 12px 20px; font-size: 16px; border-radius: 8px; background: #28a745; color: white; text-decoration: none; }
-        .history-btn:hover { background: #1e7e34; }
+        .current-card { background: white; padding: 25px; margin: 20px auto; border-radius: 15px; width: 400px; }
+        .forecast-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; }
+        .forecast-card { background: #fff; padding: 15px; border-radius: 10px; width: 150px; }
+        .weather-icon { width: 50px; height: 50px; }
     </style>
 </head>
 <body>
     <h1>🌤 Pro Weather Dashboard</h1>
+
     <!-- Search -->
     <div class="form-container">
         <form method="POST" action="/">
-            <input type="text" name="city" placeholder="Enter City (e.g. Delhi)" required>
+            <input type="text" name="city" placeholder="Enter City" value="{{ selected_city }}" required>
             <button type="submit">Get Weather</button>
         </form>
+        <br>
+        <a href="/history"><button type="button">📜 View History</button></a>
     </div>
-    <a href="/history" class="history-btn">📜 View History</a>
+
     {% if error %}
         <div class="error">⚠️ {{ error }}</div>
-        <script>alert("{{ error }}");</script>
     {% endif %}
+
     {% if current %}
     <div class="current-card">
         <h2>{{ current.city }}</h2>
         <img class="weather-icon" src="http://openweathermap.org/img/wn/{{ current.icon }}@2x.png">
-        <div class="current-temp">{{ current.temp }}°C</div>
-        <div class="info">{{ current.weather }}</div>
-        <div class="info">💧 Humidity: {{ current.humidity }}%</div>
-        <div class="info">💨 Wind: {{ current.wind }} m/s</div>
-        <div class="info">🌅 Sunrise: {{ current.sunrise }}</div>
-        <div class="info">🌇 Sunset: {{ current.sunset }}</div>
-        <p class="date">Last Updated: {{ current.date }}</p>
+        <h3>{{ current.temp }}°C</h3>
+        <p>{{ current.weather }}</p>
+        <p>💧 Humidity: {{ current.humidity }}%</p>
+        <p>💨 Wind: {{ current.wind }} m/s</p>
+        <p>🌅 Sunrise: {{ current.sunrise }} | 🌇 Sunset: {{ current.sunset }}</p>
+        <p>📅 {{ current.date }}</p>
     </div>
-    <h2 style="color:white; margin-top:40px;">📅 5-Day Forecast</h2>
+
+    <h2 style="color:white;">📅 5-Day Forecast</h2>
     <div class="forecast-container">
         {% for f in forecast %}
         <div class="forecast-card">
-            <div class="forecast-date">{{ f.date }}</div>
+            <p><b>{{ f.date }}</b></p>
             <img class="weather-icon" src="http://openweathermap.org/img/wn/{{ f.icon }}@2x.png">
-            <div class="forecast-temp">{{ f.temp }}°C</div>
-            <div class="forecast-weather">{{ f.weather }}</div>
+            <p>{{ f.temp }}°C</p>
+            <p>{{ f.weather }}</p>
         </div>
         {% endfor %}
     </div>
@@ -103,46 +95,54 @@ HISTORY_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>📜 Search History</title>
+    <title>📜 Weather History</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f0f2f5; text-align: center; }
-        h2 { color: #333; margin-top: 20px; }
-        table { margin: 20px auto; border-collapse: collapse; width: 80%; background: white; box-shadow: 0 6px 15px rgba(0,0,0,0.2); }
-        th, td { padding: 12px; border: 1px solid #ddd; }
+        body { font-family: Arial, sans-serif; background: #f4f6f9; text-align: center; }
+        h1 { background: #0077cc; color: white; padding: 15px; }
+        table { margin: 20px auto; border-collapse: collapse; width: 80%; }
+        th, td { border: 1px solid #ddd; padding: 10px; }
         th { background: #0077cc; color: white; }
         tr:nth-child(even) { background: #f9f9f9; }
-        a.btn { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #28a745; color: white; border-radius: 5px; text-decoration: none; }
-        a.btn:hover { background: #1e7e34; }
+        a button { margin: 20px; padding: 10px; font-size: 16px; border-radius: 6px; border: none; background: #0077cc; color: white; cursor: pointer; }
+        a button:hover { background: #005fa3; }
     </style>
 </head>
 <body>
-    <h2>📜 Weather Search History</h2>
+    <h1>📜 Search History</h1>
     <table>
-        <tr><th>City</th><th>Temp (°C)</th><th>Weather</th><th>Date</th></tr>
-        {% for r in records %}
-        <tr><td>{{ r.city }}</td><td>{{ r.temp }}</td><td>{{ r.weather }}</td><td>{{ r.date }}</td></tr>
+        <tr><th>City</th><th>Temperature (°C)</th><th>Weather</th><th>Date</th></tr>
+        {% for row in history %}
+        <tr>
+            <td>{{ row.city }}</td>
+            <td>{{ row.temp }}</td>
+            <td>{{ row.weather }}</td>
+            <td>{{ row.date }}</td>
+        </tr>
         {% endfor %}
     </table>
-    <a href="/download" class="btn">⬇️ Download Last 5 Days as PDF</a>
+    <a href="/download_excel"><button>⬇ Download Last 5 Days (Excel)</button></a>
+    <a href="/"><button>⬅ Back to Dashboard</button></a>
 </body>
 </html>
 """
 
-# ---------------- Routes ---------------- #
 @app.route("/", methods=["GET", "POST"])
 def home():
     selected_city = "Delhi"
-    error, current_data, forecast_data = None, None, []
+    error = None
+    current_data = None
+    forecast_data = []
 
     if request.method == "POST":
-        selected_city = request.form.get("city").strip()
+        selected_city = request.form.get("city")
 
-    # Current weather
+    # Current Weather
     current_url = f"http://api.openweathermap.org/data/2.5/weather?q={selected_city}&appid={API_KEY}&units=metric"
     current_res = requests.get(current_url).json()
+
     if "main" not in current_res:
-        error = f"⚠️ Could not fetch weather for {selected_city}."
-        return render_template_string(HTML_TEMPLATE, error=error, current=None, forecast=[])
+        error = "Error fetching weather!"
+        return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=None, forecast=[])
 
     current_data = {
         "city": current_res["name"],
@@ -169,8 +169,9 @@ def home():
     # Forecast
     forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={selected_city}&appid={API_KEY}&units=metric"
     forecast_res = requests.get(forecast_url).json()
+
     added_days = set()
-    for entry in forecast_res.get("list", []):
+    for entry in forecast_res["list"]:
         date_obj = datetime.strptime(entry["dt_txt"], "%Y-%m-%d %H:%M:%S")
         day = date_obj.strftime("%d %b")
         if date_obj.hour == 12 and day not in added_days:
@@ -182,36 +183,34 @@ def home():
             })
             added_days.add(day)
 
-    return render_template_string(HTML_TEMPLATE, error=error, current=current_data, forecast=forecast_data)
+    return render_template_string(HTML_TEMPLATE, selected_city=selected_city, error=error, current=current_data, forecast=forecast_data)
 
 @app.route("/history")
 def history():
-    records = WeatherData.query.order_by(WeatherData.id.desc()).all()
-    return render_template_string(HISTORY_TEMPLATE, records=records)
+    records = WeatherData.query.all()
+    return render_template_string(HISTORY_TEMPLATE, history=records)
 
-@app.route("/download")
-def download_pdf():
-    # filter records from last 5 days
+@app.route("/download_excel")
+def download_excel():
+    # Get last 5 days of history
     cutoff = datetime.now() - timedelta(days=5)
     records = WeatherData.query.all()
 
-    # Create PDF
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    c.setFont("Helvetica", 12)
-    c.drawString(200, 750, "📜 Weather History - Last 5 Days")
-    y = 700
-    for r in records:
-        try:
-            record_date = datetime.strptime(r.date, "%d %b %Y, %I:%M %p")
-            if record_date >= cutoff:
-                c.drawString(50, y, f"{r.city} | {r.temp}°C | {r.weather} | {r.date}")
-                y -= 20
-        except:
-            continue
-    c.save()
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name="weather_history.pdf", mimetype="application/pdf")
+    # Create Excel file
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Weather History"
+    ws.append(["City", "Temperature (°C)", "Weather", "Date"])
+
+    for row in records:
+        ws.append([row.city, row.temp, row.weather, row.date])
+
+    filepath = "weather_history.xlsx"
+    wb.save(filepath)
+
+    return send_file(filepath, as_attachment=True)
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host="0.0.0.0", port=5000)
