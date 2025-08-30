@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en" class="{{ theme_class }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌤️ Aura - Environmental Intelligence</title>
+    <style>
+        :root {
+            --color-bg-primary: #0f2027;
+            --color-bg-secondary: #203a43;
+            --color-bg-tertiary: #2c5364;
+            --color-accent: #00c6ff;
+            --color-text: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --card-shadow: rgba(0, 0, 0, 0.5);
+        }
+        .theme-day {
+            --color-bg-primary: #c2e9fb;
+            --color-bg-secondary: #a1c4fd;
+            --color-bg-tertiary: #8fbaf7;
+            --color-accent: #0468c5;
+            --color-text: #1a1a1a;
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --card-shadow: rgba(50, 50, 93, 0.1);
+        }
+        .theme-night {
+            --color-bg-primary: #0c0e2e;
+            --color-bg-secondary: #232946;
+            --color-bg-tertiary: #465398;
+            --color-accent: #eebbc3;
+            --color-text: #fffffe;
+            --card-bg: rgba(255, 255, 255, 0.08);
+            --card-shadow: rgba(0, 0, 0, 0.6);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, var(--color-bg-primary), var(--color-bg-secondary), var(--color-bg-tertiary));
+            color: var(--color-text);
+            margin: 0; padding: 0 20px 40px 0;
+            min-height: 100vh;
+            transition: background 1.5s ease;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Header & Form Styles */
+        header { padding: 20px; text-align: center; }
+        h1 { margin: 0; font-size: 2.8rem; font-weight: 300; }
+        .tagline { font-size: 1.1rem; opacity: 0.9; margin-top: -5px; }
+
+        .search-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+        input, select, button {
+            padding: 14px 18px;
+            font-size: 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            color: var(--color-text);
+            transition: all 0.3s ease;
+        }
+        input { width: 300px; }
+        input::placeholder { color: rgba(255, 255, 255, 0.6); }
+        .theme-day input::placeholder { color: rgba(0, 0, 0, 0.5); }
+        button {
+            background: var(--color-accent);
+            color: black;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        select { cursor: pointer; }
+
+        /* Card Styles */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 8px 32px var(--card-shadow);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+        .current-card:hover { transform: translateY(-8px); }
+
+        .current-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .location-name { font-size: 2rem; margin: 0; }
+        .current-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        @media (max-width: 768px) {
+            .current-body { grid-template-columns: 1fr; }
+        }
+        .primary-stats { text-align: center; }
+        .current-temp {
+            font-size: 5rem;
+            font-weight: 200;
+            margin: 10px 0;
+            color: var(--color-accent);
+        }
+        .current-weather { font-size: 1.5rem; margin-bottom: 15px; }
+        .feels-like { opacity: 0.8; font-size: 1.1rem; }
+
+        .secondary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            align-content: center;
+        }
+        .stat { text-align: center; }
+        .stat div:first-child { opacity: 0.7; font-size: 0.9rem; margin-bottom: 5px; }
+        .stat div:last-child { font-size: 1.3rem; font-weight: 500; }
+
+        /* Forecast Styles */
+        .forecast-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        .forecast-card {
+            text-align: center;
+            padding: 20px 15px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.07);
+            transition: transform 0.3s ease;
+        }
+        .forecast-card:hover { transform: scale(1.05); }
+        .forecast-date { font-weight: 600; margin-bottom: 10px; }
+        .forecast-temp { font-size: 1.8rem; margin: 10px 0; }
+        .forecast-high-low { font-size: 0.9rem; opacity: 0.8; }
+
+        .error { color: #ff6b6b; text-align: center; padding: 20px; font-size: 1.1rem; }
+
+        /* AQI Color Coding */
+        .aqi-good { color: #4caf50; }
+        .aqi-moderate { color: #ffeb3b; }
+        .aqi-unhealthy-sent { color: #ff9800; }
+        .aqi-unhealthy { color: #f44336; }
+        .aqi-very-unhealthy { color: #9c27b0; }
+        .aqi-hazardous { color: #7b1fa2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌤️ Aura</h1>
+            <p class="tagline">Contextual Environmental Intelligence</p>
+        </header>
+
+        <div class="search-container">
+            <form method="POST" action="/" style="display: contents;">
+                <input type="text" name="city" placeholder="Search for a city..." value="{{ request.form.get('city', '') }}" required>
+                <button type="submit">🔍 Search</button>
+            </form>
+            {% if user_locations %}
+            <select onchange="if(this.value) location.href='/?city='+this.value;">
+                <option value="">Recent Locations</option>
+                {% for loc in user_locations %}
+                <option value="{{ loc.city }}">{{ loc.city }}, {{ loc.country }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+
+        {% if error %}
+            <div class="error">⚠️ {{ error }}</div>
+        {% endif %}
+
+        {% if weather and weather.current %}
+        <!-- CURRENT WEATHER CARD -->
+        <div class="card current-card">
+            <div class="current-header">
+                <h2 class="location-name">
+                    {{ weather.current.city }}, {{ weather.current.country }}
+                    <img class="flag" src="https://flagcdn.com/48x36/{{ weather.current.country_code }}.png" alt="{{ weather.current.country }} flag">
+                </h2>
+                <div>🕒 {{ weather.current.local_time }}</div>
+            </div>
+
+            <div class="current-body">
+                <div class="primary-stats">
+                    <img src="http://openweathermap.org/img/wn/{{ weather.current.icon }}@4x.png" alt="Weather Icon">
+                    <div class="current-temp">{{ weather.current.temp }}°C</div>
+                    <div class="current-weather">{{ weather.current.weather }}</div>
+                    <div class="feels-like">Feels like {{ weather.current.feels_like }}°C</div>
+                </div>
+
+                <div class="secondary-stats">
+                    <div class="stat">
+                        <div>💧 Humidity</div>
+                        <div>{{ weather.current.humidity }}%</div>
+                    </div>
+                    <div class="stat">
+                        <div>💨 Wind</div>
+                        <div>{{ weather.current.wind_speed }} m/s</div>
+                    </div>
+                    <div class="stat">
+                        <div>📊 Pressure</div>
+                        <div>{{ weather.current.pressure }} hPa</div>
+                    </div>
+                    <div class="stat">
+                        <div>🌅 Sunrise</div>
+                        <div>{{ weather.current.sunrise }}</div>
+                    </div>
+                    <div class="stat">
+                        <div>🌇 Sunset</div>
+                        <div>{{ weather.current.sunset }}</div>
+                    </div>
+                    <div class="stat">
+                        <div>😷 AQI (US)</div>
+                        <div class="{% if weather.current.aqi is number %}
+                                    {% if weather.current.aqi <= 50 %}aqi-good
+                                    {% elif weather.current.aqi <= 100 %}aqi-moderate
+                                    {% elif weather.current.aqi <= 150 %}aqi-unhealthy-sent
+                                    {% elif weather.current.aqi <= 200 %}aqi-unhealthy
+                                    {% elif weather.current.aqi <= 300 %}aqi-very-unhealthy
+                                    {% else %}aqi-hazardous
+                                    {% endif %}
+                                    {% endif %}">
+                            {{ weather.current.aqi }}
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div>💨 PM2.5</div>
+                        <div>{{ weather.current.pm25 }} µg/m³</div>
+                    </div>
+                    <div class="stat">
+                        <div>🔄 Updated</div>
+                        <div>{{ weather.current.date_updated }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+          <!-- --- NEW: Action Buttons Section --- -->
+        {% if weather and weather.current %}
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="{{ url_for('export_forecast', city=weather.current.city) }}">
+                <button style="background: #4CAF50;">
+                    💾 Download Excel Report
+                </button>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- FORECAST CARD -->
+        <div class="card">
+            <h2 style="text-align: center; margin-top: 0;">📅 5-Day Forecast</h2>
+            <div class="forecast-container">
+                {% for day in weather.forecast %}
+                <div class="forecast-card">
+                    <div class="forecast-date">{{ day.date }}<br>{{ day.full_date }}</div>
+                    <img src="http://openweathermap.org/img/wn/{{ day.icon }}@2x.png" alt="Forecast icon">
+                    <div class="forecast-temp">{{ day.temp }}°C</div>
+                    <div class="forecast-high-low">H: {{ day.temp_max }}° L: {{ day.temp_min }}°</div>
+                    <div>{{ day.weather }}</div>
+                    {% if day.precip_prob > 10 %}
+                    <div>💧 {{ day.precip_prob | round | int }}%</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
