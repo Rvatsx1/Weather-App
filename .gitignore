@@ -1,0 +1,27 @@
+# Environment and secrets
+.env
+.venv
+venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Runtime
+__pycache__/
+*.pyc
+celerybeat-schedule
+
+# Docker
+docker-compose.override.yml

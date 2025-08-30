@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Our main Flask application
+  web:
+    build: .
+    ports:
+      - "5000:8000" # Map host port 5000 to container port 8000 (Gunicorn)
+    volumes:
+      - .:/home/aura/app # Live code reload for development
+    environment:
+      - FLASK_DEBUG=True
+      - DATABASE_URL=postgresql://aura_user:aura_pass@db:5432/aura_db
+      - REDIS_URL=redis://redis:6379/0
+      - OWM_API_KEY=${OWM_API_KEY}
+    env_file:
+      - .env # For secrets not passed directly above
+    depends_on:
+      - db
+      - redis
+    # Override the production CMD for development with debugger support and reloading
+    command: ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8000", "--debug"]
+
+  # Our PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=aura_user
+      - POSTGRES_PASSWORD=aura_pass
+      - POSTGRES_DB=aura_db
+    ports:
+      - "5432:5432" # Expose PG port for external tools (e.g., DBeaver)
+
+  # Redis for caching and Celery message broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # Celery worker for background tasks (e.g., weather alerts)
+  celery_worker:
+    build: .
+    command: celery -A app.celery worker --loglevel=info
+    volumes:
+      - .:/home/aura/app
+    environment:
+      - DATABASE_URL=postgresql://aura_user:aura_pass@db:5432/aura_db
+      - REDIS_URL=redis://redis:6379/0
+      - OWM_API_KEY=${OWM_API_KEY}
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
