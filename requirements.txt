@@ -4,4 +4,4 @@ gunicorn
 flask_sqlalchemy
 flask_wtf
 wtforms
-reportlab
+openpyxl
