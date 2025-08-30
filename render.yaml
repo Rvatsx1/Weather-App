@@ -1,0 +1,15 @@
+# render.yaml
+services:
+  - type: web
+    name: aura-weather-docker
+    plan: free
+    docker:
+      dockerfile: Dockerfile
+      dockerContext: .
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OWM_API_KEY
+        fromSecret: OWM_API_KEY
+      - key: PORT
+        value: 8000
