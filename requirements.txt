@@ -2,11 +2,9 @@ Flask==2.3.3
 Werkzeug==2.3.7
 Jinja2==3.1.2
 Flask-SQLAlchemy==3.0.5
-psycopg2-binary==2.9.7
 python-dotenv==1.0.0
-Celery==5.3.4
-redis==5.0.1
 requests==2.31.0
-gunicorn==21.2.0
 pandas==2.0.3
+numpy==1.24.3  # <- ADD THIS LINE - specific compatible version
 openpyxl==3.1.2
+gunicorn==21.2.0
