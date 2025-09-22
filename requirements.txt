@@ -5,6 +5,7 @@ Flask-SQLAlchemy==3.0.5
 python-dotenv==1.0.0
 requests==2.31.0
 pandas==2.0.3
-numpy==1.24.3  # <- ADD THIS LINE - specific compatible version
+numpy==1.24.3
 openpyxl==3.1.2
 gunicorn==21.2.0
+psycopg2-binary==2.9.7

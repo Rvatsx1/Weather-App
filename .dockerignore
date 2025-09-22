@@ -10,5 +10,6 @@ __pycache__
 *.pyo
 *.pyd
 .DS_Store
-Dockerfile
 docker-compose.yml
+*.sqlite3
+*.db

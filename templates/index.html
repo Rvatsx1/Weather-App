@@ -1,286 +1,275 @@
 <!DOCTYPE html>
-<html lang="en" class="{{ theme_class }}">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌤️ Aura - Environmental Intelligence</title>
+    <title>{% if weather %}{{ weather.current.city }} Weather - Aura{% else %}Aura Weather App{% endif %}</title>
     <style>
-        :root {
-            --color-bg-primary: #0f2027;
-            --color-bg-secondary: #203a43;
-            --color-bg-tertiary: #2c5364;
-            --color-accent: #00c6ff;
-            --color-text: #ffffff;
-            --card-bg: rgba(255, 255, 255, 0.1);
-            --card-shadow: rgba(0, 0, 0, 0.5);
-        }
-        .theme-day {
-            --color-bg-primary: #c2e9fb;
-            --color-bg-secondary: #a1c4fd;
-            --color-bg-tertiary: #8fbaf7;
-            --color-accent: #0468c5;
-            --color-text: #1a1a1a;
-            --card-bg: rgba(255, 255, 255, 0.7);
-            --card-shadow: rgba(50, 50, 93, 0.1);
-        }
-        .theme-night {
-            --color-bg-primary: #0c0e2e;
-            --color-bg-secondary: #232946;
-            --color-bg-tertiary: #465398;
-            --color-accent: #eebbc3;
-            --color-text: #fffffe;
-            --card-bg: rgba(255, 255, 255, 0.08);
-            --card-shadow: rgba(0, 0, 0, 0.6);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, var(--color-bg-primary), var(--color-bg-secondary), var(--color-bg-tertiary));
-            color: var(--color-text);
-            margin: 0; padding: 0 20px 40px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            transition: background 1.5s ease;
-        }
-        .container { max-width: 1200px; margin: 0 auto; }
-
-        /* Header & Form Styles */
-        header { padding: 20px; text-align: center; }
-        h1 { margin: 0; font-size: 2.8rem; font-weight: 300; }
-        .tagline { font-size: 1.1rem; opacity: 0.9; margin-top: -5px; }
-
-        .search-container {
             display: flex;
-            gap: 12px;
             justify-content: center;
             align-items: center;
-            margin: 25px 0;
-            flex-wrap: wrap;
+            padding: 20px;
         }
-        input, select, button {
-            padding: 14px 18px;
-            font-size: 1rem;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            color: var(--color-text);
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+
+        .search-form {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 70%;
+            padding: 12px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
             transition: all 0.3s ease;
         }
-        input { width: 300px; }
-        input::placeholder { color: rgba(255, 255, 255, 0.6); }
-        .theme-day input::placeholder { color: rgba(0, 0, 0, 0.5); }
-        button {
-            background: var(--color-accent);
-            color: black;
-            font-weight: 600;
-            cursor: pointer;
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            padding: 12px 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
             border: none;
+            border-radius: 25px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s ease;
         }
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        select { cursor: pointer; }
 
-        /* Card Styles */
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 8px 32px var(--card-shadow);
-            margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        .search-btn:hover {
+            transform: translateY(-2px);
         }
-        .current-card:hover { transform: translateY(-8px); }
 
-        .current-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
+        .weather-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
         }
-        .location-name { font-size: 2rem; margin: 0; }
-        .current-body {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-        }
-        @media (max-width: 768px) {
-            .current-body { grid-template-columns: 1fr; }
-        }
-        .primary-stats { text-align: center; }
+
         .current-temp {
-            font-size: 5rem;
-            font-weight: 200;
-            margin: 10px 0;
-            color: var(--color-accent);
+            font-size: 4rem;
+            font-weight: 300;
+            margin: 0.5rem 0;
         }
-        .current-weather { font-size: 1.5rem; margin-bottom: 15px; }
-        .feels-like { opacity: 0.8; font-size: 1.1rem; }
 
-        .secondary-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            align-content: center;
+        .weather-icon {
+            width: 80px;
+            height: 80px;
+            margin: 1rem 0;
         }
-        .stat { text-align: center; }
-        .stat div:first-child { opacity: 0.7; font-size: 0.9rem; margin-bottom: 5px; }
-        .stat div:last-child { font-size: 1.3rem; font-weight: 500; }
 
-        /* Forecast Styles */
-        .forecast-container {
+        .weather-details {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+            text-align: left;
         }
-        .forecast-card {
+
+        .detail-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+        }
+
+        .detail-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .forecast-section {
+            margin-top: 2rem;
+        }
+
+        .forecast-grid {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding: 1rem 0;
+        }
+
+        .forecast-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            min-width: 100px;
             text-align: center;
-            padding: 20px 15px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.07);
-            transition: transform 0.3s ease;
         }
-        .forecast-card:hover { transform: scale(1.05); }
-        .forecast-date { font-weight: 600; margin-bottom: 10px; }
-        .forecast-temp { font-size: 1.8rem; margin: 10px 0; }
-        .forecast-high-low { font-size: 0.9rem; opacity: 0.8; }
 
-        .error { color: #ff6b6b; text-align: center; padding: 20px; font-size: 1.1rem; }
+        .forecast-day {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
 
-        /* AQI Color Coding */
-        .aqi-good { color: #4caf50; }
-        .aqi-moderate { color: #ffeb3b; }
-        .aqi-unhealthy-sent { color: #ff9800; }
-        .aqi-unhealthy { color: #f44336; }
-        .aqi-very-unhealthy { color: #9c27b0; }
-        .aqi-hazardous { color: #7b1fa2; }
+        .forecast-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0.5rem 0;
+        }
+
+        .forecast-temp {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #c33;
+            margin-bottom: 1rem;
+        }
+
+        .export-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+        }
+
+        @media (max-width: 600px) {
+            .search-input {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .search-btn {
+                width: 100%;
+                margin-left: 0;
+            }
+            
+            .weather-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .current-temp {
+                font-size: 3rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🌤️ Aura</h1>
-            <p class="tagline">Contextual Environmental Intelligence</p>
-        </header>
-
-        <div class="search-container">
-            <form method="POST" action="/" style="display: contents;">
-                <input type="text" name="city" placeholder="Search for a city..." value="{{ request.form.get('city', '') }}" required>
-                <button type="submit">🔍 Search</button>
-            </form>
-            {% if user_locations %}
-            <select onchange="if(this.value) location.href='/?city='+this.value;">
-                <option value="">Recent Locations</option>
-                {% for loc in user_locations %}
-                <option value="{{ loc.city }}">{{ loc.city }}, {{ loc.country }}</option>
-                {% endfor %}
-            </select>
-            {% endif %}
-        </div>
+        <h1>🌤️ Aura Weather</h1>
+        
+        <form method="POST" class="search-form">
+            <input type="text" name="city" placeholder="Enter city name..." class="search-input" 
+                   value="{% if weather %}{{ weather.current.city }}{% endif %}" required>
+            <button type="submit" class="search-btn">Get Weather</button>
+        </form>
 
         {% if error %}
-            <div class="error">⚠️ {{ error }}</div>
+            <div class="error">{{ error }}</div>
         {% endif %}
 
         {% if weather and weather.current %}
-        <!-- CURRENT WEATHER CARD -->
-        <div class="card current-card">
-            <div class="current-header">
-                <h2 class="location-name">
-                    {{ weather.current.city }}, {{ weather.current.country }}
-                    <img class="flag" src="https://flagcdn.com/48x36/{{ weather.current.country_code }}.png" alt="{{ weather.current.country }} flag">
-                </h2>
-                <div>🕒 {{ weather.current.local_time }}</div>
-            </div>
+            <div class="weather-card">
+                <h2>{{ weather.current.city }}, {{ weather.current.country }}</h2>
+                <p>{{ weather.current.local_time }}</p>
+                
+                <img src="https://openweathermap.org/img/wn/{{ weather.current.icon }}@2x.png" 
+                     alt="{{ weather.current.weather }}" class="weather-icon">
+                
+                <div class="current-temp">{{ weather.current.temp }}°C</div>
+                <p>{{ weather.current.weather }}</p>
+                <p>Feels like {{ weather.current.feels_like }}°C</p>
 
-            <div class="current-body">
-                <div class="primary-stats">
-                    <img src="http://openweathermap.org/img/wn/{{ weather.current.icon }}@4x.png" alt="Weather Icon">
-                    <div class="current-temp">{{ weather.current.temp }}°C</div>
-                    <div class="current-weather">{{ weather.current.weather }}</div>
-                    <div class="feels-like">Feels like {{ weather.current.feels_like }}°C</div>
-                </div>
-
-                <div class="secondary-stats">
-                    <div class="stat">
-                        <div>💧 Humidity</div>
-                        <div>{{ weather.current.humidity }}%</div>
+                <div class="weather-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Humidity</div>
+                        <div class="detail-value">{{ weather.current.humidity }}%</div>
                     </div>
-                    <div class="stat">
-                        <div>💨 Wind</div>
-                        <div>{{ weather.current.wind_speed }} m/s</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Wind Speed</div>
+                        <div class="detail-value">{{ weather.current.wind_speed }} m/s</div>
                     </div>
-                    <div class="stat">
-                        <div>📊 Pressure</div>
-                        <div>{{ weather.current.pressure }} hPa</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Pressure</div>
+                        <div class="detail-value">{{ weather.current.pressure }} hPa</div>
                     </div>
-                    <div class="stat">
-                        <div>🌅 Sunrise</div>
-                        <div>{{ weather.current.sunrise }}</div>
-                    </div>
-                    <div class="stat">
-                        <div>🌇 Sunset</div>
-                        <div>{{ weather.current.sunset }}</div>
-                    </div>
-                    <div class="stat">
-                        <div>😷 AQI (US)</div>
-                        <div class="{% if weather.current.aqi is number %}
-                                    {% if weather.current.aqi <= 50 %}aqi-good
-                                    {% elif weather.current.aqi <= 100 %}aqi-moderate
-                                    {% elif weather.current.aqi <= 150 %}aqi-unhealthy-sent
-                                    {% elif weather.current.aqi <= 200 %}aqi-unhealthy
-                                    {% elif weather.current.aqi <= 300 %}aqi-very-unhealthy
-                                    {% else %}aqi-hazardous
-                                    {% endif %}
-                                    {% endif %}">
-                            {{ weather.current.aqi }}
-                        </div>
-                    </div>
-                    <div class="stat">
-                        <div>💨 PM2.5</div>
-                        <div>{{ weather.current.pm25 }} µg/m³</div>
-                    </div>
-                    <div class="stat">
-                        <div>🔄 Updated</div>
-                        <div>{{ weather.current.date_updated }}</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Visibility</div>
+                        <div class="detail-value">Good</div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-          <!-- --- NEW: Action Buttons Section --- -->
-        {% if weather and weather.current %}
-        <div style="text-align: center; margin: 20px 0;">
-            <a href="{{ url_for('export_forecast', city=weather.current.city) }}">
-                <button style="background: #4CAF50;">
-                    💾 Download Excel Report
-                </button>
-            </a>
-        </div>
+
+            {% if weather.forecast %}
+                <div class="forecast-section">
+                    <h3>5-Day Forecast</h3>
+                    <div class="forecast-grid">
+                        {% for day in weather.forecast %}
+                            <div class="forecast-item">
+                                <div class="forecast-day">{{ day.date }}</div>
+                                <img src="https://openweathermap.org/img/wn/{{ day.icon }}.png" 
+                                     alt="{{ day.weather }}" class="forecast-icon">
+                                <div class="forecast-temp">{{ day.temp }}°C</div>
+                                <div style="font-size: 0.8rem; margin-top: 0.5rem;">{{ day.weather }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <a href="/export/{{ weather.current.city }}" class="export-btn">📊 Export Forecast</a>
+            {% endif %}
         {% endif %}
 
-        <!-- FORECAST CARD -->
-        <div class="card">
-            <h2 style="text-align: center; margin-top: 0;">📅 5-Day Forecast</h2>
-            <div class="forecast-container">
-                {% for day in weather.forecast %}
-                <div class="forecast-card">
-                    <div class="forecast-date">{{ day.date }}<br>{{ day.full_date }}</div>
-                    <img src="http://openweathermap.org/img/wn/{{ day.icon }}@2x.png" alt="Forecast icon">
-                    <div class="forecast-temp">{{ day.temp }}°C</div>
-                    <div class="forecast-high-low">H: {{ day.temp_max }}° L: {{ day.temp_min }}°</div>
-                    <div>{{ day.weather }}</div>
-                    {% if day.precip_prob > 10 %}
-                    <div>💧 {{ day.precip_prob | round | int }}%</div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
+        <div style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+            <p>Powered by OpenWeatherMap API</p>
         </div>
-        {% endif %}
     </div>
 </body>
 </html>
